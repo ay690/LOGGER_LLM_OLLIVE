@@ -22,20 +22,34 @@ export interface Conversation {
 }
 
 export interface InferenceLog {
-  id: string
-  conversationId: string
-  sessionId: string
-  provider: Provider
-  model: string
-  requestTimestamp: string
-  responseTimestamp: string
-  latencyMs: number
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-  status: "success" | "error" | "cancelled"
-  errorMessage?: string
-  inputPreview: string
-  outputPreview: string
-  requestId: string
+    id: string
+    conversationId: string
+    sessionId: string
+    provider: Provider
+    model: string
+    requestTimestamp: string
+    responseTimestamp: string
+    latencyMs: number
+    promptTokens: number
+    completionTokens: number
+    totalTokens: number
+    status: "success" | "error" | "cancelled"
+    errorMessage?: string
+    inputPreview: string
+    outputPreview: string
+    requestId: string
+}
+
+export interface DashboardMetrics {
+    totalRequests: number
+    successRate: number
+    avgLatencyMs: number
+    totalTokens: number
+    requestsPerMinute: number
+    errorCount: number
+    providerBreakdown: Record<Provider, number>
+    latencyHistory: { time: string; latency: number }[]
+    throughputHistory: { time: string; requests: number }[]
+    tokenUsageHistory: { time: string; tokens: number }[]
+    errorHistory: { time: string; errors: number }[]
 }
