@@ -2,6 +2,8 @@ export type Provider = "puter"
 
 export type MessageRole = "system" | "user" | "assistant";
 
+export type View = "chat" | "dashboard" | "logs" | "conversations";
+
 export interface Message {
     id: string;
     role: MessageRole;
