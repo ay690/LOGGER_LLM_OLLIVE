@@ -3,13 +3,16 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import ChatView from "@/components/chat/ChatView";
 import { useAppSelector } from "@/store/hooks";
 import { Header } from "@/components/layout/Header";
+import { ConversationsView } from "@/components/conversations/ConversationsView";
 
 function ViewRouter() {
-  const activeView = useAppSelector((s) => s.ui.activeView)
+  const activeView = useAppSelector((s) => s.ui.activeView);
 
   switch (activeView) {
     case "chat":
       return <ChatView />;
+    case "conversations":
+      return <ConversationsView />;
     default:
       return <ChatView />;
   }
