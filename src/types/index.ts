@@ -21,3 +21,21 @@ export interface Conversation {
     status: "active" | "cancelled" | "completed";
 }
 
+export interface InferenceLog {
+  id: string
+  conversationId: string
+  sessionId: string
+  provider: Provider
+  model: string
+  requestTimestamp: string
+  responseTimestamp: string
+  latencyMs: number
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+  status: "success" | "error" | "cancelled"
+  errorMessage?: string
+  inputPreview: string
+  outputPreview: string
+  requestId: string
+}
