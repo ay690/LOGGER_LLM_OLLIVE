@@ -20,7 +20,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { cn } from "@/lib/utils";
 import type { Message } from "@/types";
 
-const ChatView = () => {
+export function ChatView (){
   const dispatch = useAppDispatch()
   const settings = useAppSelector((s) => s.settings)
   const conversations = useAppSelector((s) => s.conversations)
@@ -286,5 +286,3 @@ const ChatView = () => {
     </div>
   )
 }
-
-export default ChatView;

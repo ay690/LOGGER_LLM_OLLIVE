@@ -1,9 +1,10 @@
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/layout/Sidebar";
-import ChatView from "@/components/chat/ChatView";
+import { ChatView } from "@/components/chat/ChatView";
 import { useAppSelector } from "@/store/hooks";
 import { Header } from "@/components/layout/Header";
 import { ConversationsView } from "@/components/conversations/ConversationsView";
+import { LogsView } from "./components/logs/LogsView";
 
 function ViewRouter() {
   const activeView = useAppSelector((s) => s.ui.activeView);
@@ -11,6 +12,8 @@ function ViewRouter() {
   switch (activeView) {
     case "chat":
       return <ChatView />;
+    case "logs":
+      return <LogsView />;
     case "conversations":
       return <ConversationsView />;
     default:
