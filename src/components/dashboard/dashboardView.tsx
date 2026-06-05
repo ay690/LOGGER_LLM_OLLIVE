@@ -10,48 +10,8 @@ import {
 } from "lucide-react"
 import { useAppSelector } from "@/store/hooks"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { PUTER_MODELS } from "@/sdk/llmSdk"
-import type { InferenceLog } from "@/types"
-
-// ─── Model color palette ──────────────────────────────────────────────────────
-const PALETTE = [
-  "#4285F4", "#EA4335", "#FBBC05", "#34A853",
-  "#8B5CF6", "#F97316", "#06B6D4", "#EC4899",
-  "#10B981", "#6366F1", "#F59E0B", "#84CC16",
-  "#3B82F6", "#A855F7", "#EF4444",
-]
-
-function stableColor(str: string): string {
-  let h = 0
-  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h)
-  return PALETTE[Math.abs(h) % PALETTE.length]
-}
-
-function shortLabel(modelValue: string): string {
-  return PUTER_MODELS.find((m) => m.value === modelValue)?.label ?? modelValue
-}
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function bucketByMinute(logs: InferenceLog[]) {
-  const map = new Map<string, { latency: number[]; count: number; errors: number; tokens: number }>()
-  for (const log of logs) {
-    const d = new Date(log.requestTimestamp)
-    const key = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
-    const existing = map.get(key) ?? { latency: [], count: 0, errors: 0, tokens: 0 }
-    existing.latency.push(log.latencyMs)
-    existing.count += 1
-    if (log.status === "error") existing.errors += 1
-    existing.tokens += log.totalTokens
-    map.set(key, existing)
-  }
-  return Array.from(map.entries()).slice(-15).map(([time, v]) => ({
-    time,
-    latency: Math.round(v.latency.reduce((a, b) => a + b, 0) / v.latency.length),
-    requests: v.count,
-    errors: v.errors,
-    tokens: v.tokens,
-  }))
-}
+import { stableColor, shortLabel } from "@/helpers/modelHelpers"
+import { bucketByMinute } from "@/helpers/chartHelpers"
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon, accent }: {

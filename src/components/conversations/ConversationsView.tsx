@@ -10,28 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
-import type { Conversation } from "@/types"
-
-function statusColor(status: Conversation["status"]) {
-  switch (status) {
-    case "active":
-      return "bg-green-500/15 text-green-600 dark:text-green-400"
-    case "cancelled":
-      return "bg-destructive/10 text-destructive"
-    case "completed":
-      return "bg-muted text-muted-foreground"
-  }
-}
-
-function formatDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-}
+import { statusColor, formatDate } from "@/helpers/conversationHelpers"
 
 export function ConversationsView() {
   const dispatch = useAppDispatch()
