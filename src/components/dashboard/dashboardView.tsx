@@ -93,9 +93,9 @@ const tooltipStyle = {
 }
 
 // ─── Custom pie label ─────────────────────────────────────────────────────────
-function PieLabel({ cx, cy, midAngle, innerRadius, outerRadius, percent }: {
-  cx: number; cy: number; midAngle: number
-  innerRadius: number; outerRadius: number; percent: number
+function PieLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }: {
+  cx?: number; cy?: number; midAngle?: number
+  innerRadius?: number; outerRadius?: number; percent?: number
 }) {
   if (percent < 0.05) return null
   const RADIAN = Math.PI / 180
@@ -235,9 +235,10 @@ export function DashboardView() {
                 </Pie>
                 <Tooltip
                   {...tooltipStyle}
-                  formatter={(value: number, _: string, props: { payload?: { label?: string } }) =>
-                    [`${value} request${value !== 1 ? "s" : ""}`, props.payload?.label ?? ""]
-                  }
+                  formatter={(value, _name, props: { payload?: { label?: string } }) => {
+                    const count = typeof value === "number" ? value : 0
+                    return [`${count} request${count !== 1 ? "s" : ""}`, props.payload?.label ?? ""]
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
