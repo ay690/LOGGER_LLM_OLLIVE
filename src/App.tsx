@@ -1,25 +1,32 @@
-import { Button } from "@/components/ui/button"
-import {useAppDispatch, useAppSelector} from "@/store/hooks";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Sidebar } from "@/components/layout/Sidebar";
+import ChatView  from "@/components/chat/ChatView";
+import { useAppSelector } from "@/store/hooks";
+
+function ViewRouter() {
+  const activeView = useAppSelector((s) => s.ui.activeView)
+
+  switch (activeView) {
+    case "chat":
+      return <ChatView />;
+    default:
+      return <ChatView />;
+  }
+}
 
 export function App() {
-  const activeView = useAppSelector(state => state.ui.activeView);
-  console.log("Active view:", activeView);
-
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
+    <TooltipProvider>
+      <div className="flex h-svh overflow-hidden bg-background">
+        <Sidebar />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <main className="flex-1 overflow-hidden">
+            <ViewRouter />
+          </main>
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   )
 }
 
-export default App
+export default App;
