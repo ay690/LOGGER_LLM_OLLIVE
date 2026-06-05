@@ -13,6 +13,8 @@
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.9",
+    "@heyputer/puter.js": "^2.5.1",
+    "@reduxjs/toolkit": "^2.12.0",
     "@tailwindcss/vite": "^4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -20,6 +22,8 @@
     "radix-ui": "^1.4.3",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
+    "react-redux": "^9.3.0",
+    "recharts": "^3.8.1",
     "shadcn": "^4.10.0",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4",
