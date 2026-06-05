@@ -5,6 +5,7 @@ import { useAppSelector } from "@/store/hooks";
 import { Header } from "@/components/layout/Header";
 import { ConversationsView } from "@/components/conversations/ConversationsView";
 import { LogsView } from "./components/logs/LogsView";
+import { DashboardView } from "./components/dashboard/dashboardView";
 
 function ViewRouter() {
   const activeView = useAppSelector((s) => s.ui.activeView);
@@ -16,6 +17,8 @@ function ViewRouter() {
       return <LogsView />;
     case "conversations":
       return <ConversationsView />;
+    case "dashboard":
+      return <DashboardView />;
     default:
       return <ChatView />;
   }
