@@ -1,6 +1,8 @@
+import { SettingsPanel } from "@/components/chat/SettingsPanel";
+
 const ChatView = () => {
   return (
-    <div>ChatView</div>
+    <SettingsPanel />
   )
 }
 
