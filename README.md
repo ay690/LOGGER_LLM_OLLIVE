@@ -1,115 +1,148 @@
 # LLM Logger
 
-A developer tool for monitoring and inspecting LLM inference in real time. Built with React, Redux Toolkit, and [Puter.js](https://puter.com) — no API key required.
+A full-stack developer tool for monitoring LLM inference in real time. Chat with 15+ models through a clean interface while every request — latency, tokens, status, previews — is automatically captured, persisted to MongoDB, and visualised on a live dashboard.
 
-![LLM Logger](https://img.shields.io/badge/version-0.0.1-blue) ![React](https://img.shields.io/badge/React-19-61DAFB?logo=react) ![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript) ![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite)
-
----
-
-## Overview
-
-LLM Logger is a local web app that wraps Puter's free AI gateway, giving you a clean chat interface while automatically capturing every inference call's metadata: latency, token usage, model, status, and more. Switch between chat, logs, conversations, and a live dashboard — all without setting up a backend or managing API keys.
+![version](https://img.shields.io/badge/version-0.0.1-blue)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?logo=typescript)
+![Express](https://img.shields.io/badge/Express-4-000000?logo=express)
+![MongoDB](https://img.shields.io/badge/MongoDB-8-47A248?logo=mongodb)
 
 ---
 
-## Features
+## What it does
 
-- **Chat** — Stream responses from 15+ models (GPT-4o, Claude, Gemini, Llama, Grok, Mistral, DeepSeek, and more) with per-message streaming indicators
-- **Inference Logs** — Every request is automatically logged with latency, prompt/completion token estimates, status, input/output previews, and request IDs. Filterable by model, status, and search query
-- **Conversations** — Full conversation history with resume, cancel, and delete actions
-- **Dashboard** — Live metrics including:
-  - Total requests, success rate, average latency, total tokens
-  - Latency and throughput time-series charts
-  - Model usage breakdown (donut chart)
-  - Error and token usage trends
-  - Recent activity feed
-- **PII Redaction** — Optional client-side redaction of emails, phone numbers, SSNs, and card numbers before previews are stored
-- **Streaming toggle** — Switch between streaming and non-streaming modes per session
-- **Dark / light theme** — System-aware with manual override
+- **Chat** — stream responses from 15+ models (GPT-4o, Claude, Gemini, Llama, Grok, Mistral, DeepSeek) via [Puter.js](https://puter.com) — no API key needed
+- **Inference Logs** — every request is logged automatically: latency, prompt/completion token estimates, status, input/output previews, request IDs; filterable and paginated
+- **Conversations** — full history persisted to MongoDB; resume, cancel, or delete any conversation
+- **Dashboard** — live metrics aggregated server-side: success rate, avg latency, total tokens, per-minute time-series charts, model breakdown
+- **PII Redaction** — optional client-side scrub of emails, phones, SSNs, card numbers before previews are stored
+- **Settings persistence** — model choice, streaming toggle, and PII toggle survive page refresh (stored in MongoDB)
 
 ---
 
-## Tech Stack
+## Repository layout
 
-| Layer | Library |
+```
+logger_llm/
+├── client/          # React + Vite SPA
+├── server/          # Express + MongoDB ingestion API
+├── README.md
+└── ARCHITECTURE.md
+```
+
+---
+
+## Tech stack
+
+### Client
+| | |
 |---|---|
 | Framework | React 19 + TypeScript 6 |
 | Build | Vite 8 |
 | State | Redux Toolkit 2 |
-| UI Components | shadcn/ui + Radix UI |
-| Styling | Tailwind CSS v4 |
+| UI | shadcn/ui + Radix UI + Tailwind CSS v4 |
 | Charts | Recharts 3 |
-| Icons | Lucide React |
-| AI Gateway | Puter.js (`@heyputer/puter.js`) |
+| AI gateway | Puter.js (`@heyputer/puter.js`) |
+
+### Server
+| | |
+|---|---|
+| Runtime | Node.js (CommonJS) |
+| Framework | Express 4 |
+| Database | MongoDB via Mongoose 8 |
+| Validation | Zod 3 |
+| Dev server | ts-node-dev |
 
 ---
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
 - Node.js 18+
-- npm or any compatible package manager
+- A running MongoDB instance (local or Atlas)
 
-### Install
+### 1. Start the backend
 
 ```bash
+cd server
 npm install
 ```
 
-### Run (development)
+Create `server/.env`:
+
+```env
+MONGODB_URI=mongodb+srv://<user>:<pass>@cluster.mongodb.net/?appName=Cluster0
+PORT=3001
+NODE_ENV=development
+```
 
 ```bash
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+The API will be available at `http://localhost:3001/api`.
 
-> On first use, Puter.js will prompt you to sign in with a free Puter account. No credit card or API key is needed.
-
-### Build
+### 2. Start the frontend
 
 ```bash
-npm run build
+cd client
+npm install
+npm run dev
 ```
 
-### Preview production build
+Open [http://localhost:5173](http://localhost:5173).
 
-```bash
-npm run preview
-```
+> On first use Puter.js will prompt you to sign in with a free Puter account. No credit card or API key required.
 
 ---
 
-## Project Structure
+## API reference
 
-```
-src/
-├── components/
-│   ├── chat/               # Chat interface, message bubbles, settings panel
-│   ├── conversations/      # Conversation history view
-│   ├── dashboard/          # Metrics dashboard with charts
-│   ├── layout/             # Sidebar and header
-│   ├── logs/               # Inference log viewer with filters
-│   └── ui/                 # shadcn/ui primitives
-├── helpers/
-│   ├── chartHelpers.ts     # Time-series bucketing for charts
-│   ├── conversationHelpers.ts  # Status colors and date formatting
-│   ├── logHelpers.tsx      # Log status badges and timestamp formatting
-│   └── modelHelpers.ts     # Model color palette and label lookup
-├── sdk/
-│   └── llmSdk.ts           # Puter.js wrapper, PII redaction, log dispatch
-├── store/
-│   ├── slices/             # Redux slices: conversations, logs, settings, ui
-│   ├── hooks.ts            # Typed useAppSelector / useAppDispatch
-│   └── index.ts            # Store configuration
-└── types/
-    └── index.ts            # Shared TypeScript types
-```
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/health` | Server health check |
+| `GET` | `/api/conversations` | List all conversations (no message body, includes `messageCount`) |
+| `POST` | `/api/conversations` | Create a conversation |
+| `GET` | `/api/conversations/:id` | Fetch a conversation with all messages |
+| `POST` | `/api/conversations/:id/messages` | Append a message |
+| `PATCH` | `/api/conversations/:id/status` | Update status (`active` / `cancelled` / `completed`) |
+| `DELETE` | `/api/conversations/:id` | Delete a conversation |
+| `POST` | `/api/logs` | Ingest a single inference log (idempotent via `requestId`) |
+| `POST` | `/api/logs/batch` | Ingest up to 50 logs at once |
+| `GET` | `/api/logs` | Paginated log list (`?model=`, `?status=`, `?search=`, `?page=`, `?limit=`) |
+| `GET` | `/api/logs/stats` | Aggregated dashboard metrics (`?since=` ISO timestamp) |
+| `GET` | `/api/logs/:id` | Fetch a single log |
+| `GET` | `/api/settings` | Get user settings (auto-creates defaults) |
+| `PATCH` | `/api/settings` | Update settings (partial) |
 
 ---
 
-## Supported Models
+## Available scripts
+
+### Client (`client/`)
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Vite dev server on port 5173 |
+| `npm run build` | Type-check + production build |
+| `npm run preview` | Preview production build locally |
+| `npm run lint` | ESLint |
+| `npm run format` | Prettier on all TS/TSX files |
+| `npm run typecheck` | TypeScript check without emit |
+
+### Server (`server/`)
+
+| Command | Description |
+|---|---|
+| `npm run dev` | ts-node-dev with hot reload |
+| `npm run build` | Compile TypeScript to `dist/` |
+| `npm start` | Run compiled build |
+
+---
+
+## Supported models
 
 All models are proxied through Puter's free AI gateway:
 
@@ -125,24 +158,9 @@ All models are proxied through Puter's free AI gateway:
 
 ---
 
-## Available Scripts
-
-| Command | Description |
-|---|---|
-| `npm run dev` | Start development server |
-| `npm run build` | Type-check and build for production |
-| `npm run preview` | Preview the production build locally |
-| `npm run lint` | Run ESLint |
-| `npm run format` | Format all TS/TSX files with Prettier |
-| `npm run typecheck` | Run TypeScript compiler check without emitting |
-
----
-
 ## Notes
 
-- Token counts are estimated (4 characters ≈ 1 token) since Puter.js does not yet expose usage data from its SDK
-- All data is stored in Redux (in-memory) and resets on page refresh — there is no persistence layer yet
-- PII redaction applies to stored previews only; full message content is still sent to the model
-
----
-
+- Token counts are estimated (4 chars ≈ 1 token) — Puter.js does not yet expose usage data from its SDK
+- PII redaction applies to stored previews only; full message content is sent to the model
+- The `Provider` type is designed for future expansion; only `"puter"` is implemented today
+- Streaming abort uses the browser `AbortController`; mid-stream cancellation behaviour depends on the underlying model

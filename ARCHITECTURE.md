@@ -1,79 +1,68 @@
 # Architecture — LLM Logger
 
-## Overview
+## System overview
 
-LLM Logger is a **single-page, client-only application** built with React and Vite. There is no backend, no database, and no server process. All state lives in memory (Redux store) and is cleared on page refresh. The app communicates with LLMs exclusively through the Puter.js browser SDK, which proxies requests to 15+ model providers without requiring any API keys.
+LLM Logger is a full-stack application split into two independently runnable processes: a **React SPA** (client) and an **Express + MongoDB API** (server). The client handles the UI and all LLM communication; the server is a pure ingestion and storage layer.
 
 ```
-Browser
-└── React App (Vite SPA)
-    ├── UI Layer       → React components (shadcn/ui + Tailwind CSS v4)
-    ├── State Layer    → Redux Toolkit (in-memory, no persistence)
-    ├── SDK Layer      → llmSdk.ts wrapping @heyputer/puter.js
-    └── Puter Gateway  → External free AI proxy (network call)
+┌─────────────────────────────────────────────────┐
+│                   Browser                        │
+│                                                  │
+│   React SPA (Vite)                               │
+│   ├── Redux store  (in-memory, hydrated on boot) │
+│   ├── llmSdk.ts   (Puter.js wrapper)             │
+│   └── api/client.ts  (fetch → Express API)      │
+│                    │              │               │
+└────────────────────┼──────────────┼───────────────┘
+                     │              │
+                     ▼              ▼
+             Puter.js AI      Express API
+             Gateway          :3001
+             (external)          │
+                              MongoDB Atlas
+```
+
+The client is **optimistic** — every action (create conversation, add message, log an inference) updates the Redux store immediately and then syncs to the backend as a fire-and-forget side effect. The UI never waits for the network.
+
+---
+
+## Repository layout
+
+```
+logger_llm/
+├── client/                  # React + Vite SPA
+│   ├── src/
+│   │   ├── api/             # Typed fetch client (all HTTP calls)
+│   │   ├── components/      # React components by feature
+│   │   ├── helpers/         # Pure utility functions
+│   │   ├── sdk/             # Puter.js wrapper + PII redaction
+│   │   ├── store/           # Redux slices + typed hooks
+│   │   └── types/           # Shared TypeScript interfaces
+│   ├── index.html
+│   ├── vite.config.ts
+│   └── package.json
+│
+├── server/                  # Express + Mongoose API
+│   ├── src/
+│   │   ├── models/          # Mongoose schemas
+│   │   ├── routes/          # Route handlers
+│   │   ├── middleware/       # Validation, error handling, async wrapper
+│   │   ├── validators/      # Zod schemas
+│   │   ├── db.ts            # MongoDB connection
+│   │   └── index.ts         # Express app entry point
+│   └── package.json
+│
+├── README.md
+└── ARCHITECTURE.md
 ```
 
 ---
 
-## Architectural Style
+## Client architecture
 
-The project follows a **reactive state machine** pattern, not an event-driven architecture.
+### State design
 
-| Term | Reality in this project |
-|---|---|
-| "Events" | Redux actions — plain objects dispatched synchronously |
-| "Subscribers" | React components re-rendering on state diffs via `useAppSelector` |
-| "Side effects" | Inline async handlers in `ChatView`, not middleware |
-| "Event bus" | Does not exist — callers always know what they dispatch |
-
-The closest thing to pub/sub is `llmSdk.ts` receiving `dispatch` as a dependency-injected argument and calling `addLog` as a fire-and-forget side effect inside `finally`. This is still a direct function call, not a decoupled event.
-
----
-
-## Directory Structure
-
-```
-src/
-├── components/
-│   ├── chat/               # Chat interface
-│   │   ├── ChatView.tsx        — main send/receive/stream logic
-│   │   ├── MessageBubble.tsx   — renders a single message
-│   │   └── SettingsPanel.tsx   — model, streaming, PII toggles
-│   ├── conversations/
-│   │   └── ConversationsView.tsx — history list, resume/delete
-│   ├── dashboard/
-│   │   └── dashboardView.tsx   — metrics, charts, recent activity
-│   ├── layout/
-│   │   ├── Sidebar.tsx         — nav + collapse toggle
-│   │   └── Header.tsx          — title, log count badge, theme toggle
-│   ├── logs/
-│   │   └── LogsView.tsx        — filterable inference log table
-│   ├── ui/                     — shadcn/ui primitives (button, card, etc.)
-│   └── theme-provider.tsx      — dark/light theme via CSS variables
-├── helpers/
-│   ├── chartHelpers.ts         — per-minute time-series bucketing
-│   ├── conversationHelpers.ts  — status colors, date formatting
-│   ├── logHelpers.tsx          — log status badges, timestamp display
-│   └── modelHelpers.ts         — deterministic color palette, label lookup
-├── sdk/
-│   └── llmSdk.ts               — Puter.js wrapper, PII redaction, log dispatch
-├── store/
-│   ├── index.ts                — configureStore (4 slices)
-│   ├── hooks.ts                — typed useAppDispatch / useAppSelector
-│   └── slices/
-│       ├── conversationsSlice.ts  — conversation CRUD + streaming state
-│       ├── logsSlice.ts           — inference log list + filters (max 500)
-│       ├── settingsSlice.ts       — model, streaming, PII settings
-│       └── uiSlice.ts             — active view, sidebar open, selected log
-└── types/
-    └── index.ts                — shared TypeScript interfaces
-```
-
----
-
-## State Design
-
-Four independent Redux slices compose the entire app state.
+Four Redux slices compose the entire client state. Slices are deliberately isolated — no slice reads from another.
 
 ```
 RootState
@@ -86,87 +75,101 @@ RootState
 │   ├── defaultProvider: "puter"
 │   ├── defaultModel: string
 │   ├── streamingEnabled: boolean
-│   └── piiRedactionEnabled: boolean
+│   ├── piiRedactionEnabled: boolean
+│   └── syncing: boolean
 │
 ├── conversations
-│   ├── items: Conversation[]      — full message history
+│   ├── items: Conversation[]         — full message history
 │   ├── activeConversationId: string | null
 │   ├── isLoading: boolean
-│   └── streamingMessageId: string | null
+│   ├── streamingMessageId: string | null
+│   └── syncing: boolean
 │
 └── logs
-    ├── items: InferenceLog[]      — capped at 500 entries, newest first
-    └── filter: { model, status, search }
+    ├── items: InferenceLog[]         — newest-first, capped at 500
+    ├── filter: { model, status, search }
+    └── syncing: boolean
 ```
 
-Slices have no cross-slice dependencies. They are deliberately isolated — the `logs` slice never reads from `conversations`, and vice versa.
+Each slice exports both synchronous reducers (for immediate UI updates) and async thunks (for backend sync). Thunk rejections are logged to the console but never surface as UI errors — the app keeps working offline.
 
----
-
-## Data Flow — Sending a Message
+### Bootstrap sequence
 
 ```
-User types → presses Enter
+main.tsx
+  └── Promise.all([
+        store.dispatch(loadSettings()),      // GET /api/settings
+        store.dispatch(loadConversations()), // GET /api/conversations
+      ])
+        └── .finally(() => ReactDOM.render(...))
+```
+
+The app renders only after both fetches resolve or fail. On failure the store starts with hardcoded defaults — fully offline-tolerant.
+
+### Data flow — sending a message
+
+```
+User presses Enter
         │
         ▼
 ChatView.handleSend()
-  ├── dispatch(createConversation)    → conversations slice
-  ├── dispatch(addMessage) [user]     → conversations slice
-  ├── dispatch(addMessage) [streaming placeholder] → conversations slice
-  ├── dispatch(setStreamingMessageId)
+  ├── [if new conv] dispatch(createConversation)     → store (sync)
+  ├──              dispatch(syncCreateConversation)  → POST /api/conversations
+  ├── dispatch(addMessage) [user msg]                → store (sync)
+  ├── dispatch(syncAddMessage)                       → POST /api/conversations/:id/messages
+  ├── dispatch(addMessage) [streaming placeholder]  → store (sync)
   ├── dispatch(setLoading(true))
   │
-  └── llmCall(messages, convId, { dispatch, model, ... }, onChunk, signal)
+  └── llmCall(messages, convId, config, onChunk, signal)
           │
-          ├── [streaming] puter.ai.chat(..., { stream: true })
-          │       └── for await (chunk) → dispatch(updateStreamingMessage)
-          │                               → re-renders MessageBubble live
+          ├── [streaming]  puter.ai.chat(..., { stream: true })
+          │       └── for await chunk → dispatch(updateStreamingMessage) → live re-render
           │
-          ├── [non-streaming] puter.ai.chat(...)
-          │       └── single response → dispatch(updateStreamingMessage)
+          ├── [non-stream] puter.ai.chat(...)
+          │       └── response → dispatch(updateStreamingMessage)
           │
-          └── finally (always runs)
-                  ├── dispatch(addLog)               → logs slice
-                  └── (returns to ChatView)
-                          ├── dispatch(finalizeStreamingMessage)
-                          └── dispatch(setLoading(false))
+          └── finally (always — success, error, or cancel)
+                  ├── dispatch(addLog)     → logs slice (sync)
+                  └── dispatch(syncLog)   → POST /api/logs (async, fire-and-forget)
+
+  finally (ChatView)
+    ├── dispatch(finalizeStreamingMessage)
+    ├── [if content] dispatch(syncAddMessage) [assistant msg]  → POST /api/conversations/:id/messages
+    └── dispatch(setLoading(false))
 ```
 
----
-
-## Data Flow — Cancelling a Request
+### Data flow — cancellation
 
 ```
-User clicks Cancel button
+User clicks Cancel
         │
         ▼
 ChatView.handleCancel()
-  ├── abortRef.current.abort()           → throws AbortError in llmCall
-  ├── dispatch(cancelConversation)
-  │       └── removes streaming message, sets status = "cancelled"
-  └── dispatch(setLoading(false))
-
-llmCall catch block
-  └── detects AbortError → status = "cancelled" → dispatch(addLog) in finally
+  ├── abortRef.current.abort()
+  │       └── throws AbortError inside llmCall
+  │               └── catch → status = "cancelled"
+  │               └── finally → dispatch(addLog) + dispatch(syncLog)
+  ├── dispatch(cancelConversation)        → removes streaming msg, sets status
+  └── dispatch(syncConversationStatus)   → PATCH /api/conversations/:id/status
 ```
 
----
+### SDK layer (`sdk/llmSdk.ts`)
 
-## SDK Layer (`llmSdk.ts`)
+The SDK has three responsibilities and no others:
 
-The SDK is a thin wrapper, not an abstraction. It handles three responsibilities:
+1. **PII redaction** — regex scrub of emails, phones, SSNs, card numbers applied to previews before storage (never to content sent to the model)
+2. **Puter.js call** — translates `Message[]` to OpenAI-style format; handles streaming (async iterable) and non-streaming paths
+3. **Log dispatch** — always creates an `InferenceLog` in `finally` regardless of outcome, then dispatches `addLog` (sync) and `syncLog` (async)
 
-1. **PII Redaction** — regex scrub of emails, phones, SSNs, card numbers before storing previews
-2. **Puter.js call** — translates internal `Message[]` to OpenAI-style format, handles both streaming and non-streaming paths
-3. **Log dispatch** — always fires `addLog` in `finally` with latency, token estimates, status, and previews
+Token counts are estimated at `Math.ceil(chars / 4)` since Puter.js does not yet expose usage data. Prompt tokens are estimated before the request so error logs still carry meaningful values.
 
-Token counts are **estimated** (chars / 4) since Puter.js does not expose usage data from its SDK yet.
+### API client (`api/client.ts`)
 
----
+All `fetch` calls are centralised here in three namespaces — `conversationsApi`, `logsApi`, `settingsApi`. Components and thunks import from this module and never call `fetch` directly. The client maps between the server's `llmModel` field name and the frontend's `model` field transparently.
 
-## Routing
+### Routing
 
-There is no URL-based router (no React Router). Navigation is purely state-driven:
+There is no URL-based router. Navigation is pure state:
 
 ```
 ui.activeView  →  ViewRouter (App.tsx)  →  renders one of:
@@ -176,68 +179,170 @@ ui.activeView  →  ViewRouter (App.tsx)  →  renders one of:
     "dashboard"      →  DashboardView
 ```
 
-Sidebar dispatches `setActiveView`. The URL never changes.
+The URL never changes.
 
----
-
-## Rendering Architecture
+### Component tree
 
 ```
 App
-├── Sidebar          — reads ui.activeView, ui.sidebarOpen
-├── Header           — reads ui.activeView, logs.items.length
+├── Sidebar            reads ui.activeView, ui.sidebarOpen
+├── Header             reads ui.activeView, logs.items.length
 └── ViewRouter
-    ├── ChatView     — reads conversations.*, settings.*
+    ├── ChatView        reads conversations.*, settings.*
     │   ├── MessageBubble (per message)
     │   └── SettingsPanel
-    ├── LogsView     — reads logs.items, logs.filter
-    ├── ConversationsView — reads conversations.items
-    └── DashboardView     — reads logs.items (derives all metrics via useMemo)
+    ├── LogsView        reads logs.items, logs.filter — loads on mount
+    ├── ConversationsView  reads conversations.items — refreshes logs on mount
+    └── DashboardView   reads logs.items — loads on mount, derives all metrics via useMemo
 ```
 
-DashboardView is the only component that performs **derived computation** — all chart data and metrics are computed inside a single `useMemo` over `logs.items`. No selectors are memoized outside components.
+`DashboardView` is the only component that performs non-trivial derived computation. All chart series, stat cards, and the model breakdown are computed inside a single `useMemo` over `logs.items` with no external memoisation.
+
+### Client dependency rules
+
+```
+components  →  store/hooks, sdk/llmSdk, helpers/*, components/ui/*
+sdk         →  @heyputer/puter.js, store (dispatch injected — never imported)
+store       →  @reduxjs/toolkit, api/client
+api/client  →  fetch (browser native)
+helpers     →  pure functions, no external dependencies
+```
+
+The store never imports from components or the SDK. The SDK never imports from components. The dependency graph is acyclic.
 
 ---
 
-## Theme
+## Server architecture
 
-Theme is handled by `ThemeProvider` (wraps the app in `main.tsx`) using CSS custom properties. It reads from `localStorage` and applies a `dark` class to the root element. Redux is not involved — theme is the only piece of state that persists across page refreshes.
+### MongoDB collections
+
+**`conversations`**
+```
+{
+  _id:        String   // nanoid — kept as-is from client
+  title:      String
+  llmModel:   String   // renamed from 'model' to avoid Mongoose Document.model() clash
+  provider:   String
+  status:     "active" | "cancelled" | "completed"
+  messages: [{
+    id:        String
+    role:      "system" | "user" | "assistant"
+    content:   String
+    timestamp: Date
+  }]
+  createdAt:  Date     // managed by Mongoose timestamps option
+  updatedAt:  Date
+}
+```
+
+Messages are embedded — they are always read together with the conversation and typical conversation length will not approach the 16 MB BSON limit.
+
+**`inferencelogs`**
+```
+{
+  _id:               String   // nanoid log.id
+  conversationId:    String   // ref → conversations._id
+  sessionId:         String
+  provider:          String
+  llmModel:          String
+  requestTimestamp:  Date
+  responseTimestamp: Date
+  latencyMs:         Number
+  promptTokens:      Number
+  completionTokens:  Number
+  totalTokens:       Number
+  status:            "success" | "error" | "cancelled"
+  errorMessage:      String?
+  inputPreview:      String   // max 500 chars, PII-redacted on client
+  outputPreview:     String   // max 500 chars, PII-redacted on client
+  requestId:         String   // unique — used for idempotency
+}
+```
+
+Indexes:
+- `{ conversationId, requestTimestamp: -1 }` — per-conversation log queries
+- `{ requestTimestamp: -1 }` — dashboard time-series aggregation
+- `{ llmModel, requestTimestamp: -1 }` — model filter
+- `{ status, requestTimestamp: -1 }` — status filter
+- `{ requestId }` unique — idempotency (duplicate POST returns 200, not 201)
+
+**`usersettings`**
+```
+{
+  userId:             String   // "default" until auth is added
+  defaultProvider:    String
+  defaultModel:       String
+  streamingEnabled:   Boolean
+  piiRedactionEnabled: Boolean
+}
+```
+
+### Ingestion pipeline
+
+```
+POST /api/logs
+        │
+        ▼
+validate(IngestLogSchema)          ← Zod: type coercion, length caps, defaults
+        │  400 on failure (field-level errors)
+        ▼
+idempotency check                  ← findOne({ requestId })
+        │  200 + { duplicate: true } if exists
+        ▼
+InferenceLog.save()                ← Mongoose + MongoDB Atlas
+        │
+        ▼
+201 { data: log }
+```
+
+`errorMessage` is truncated server-side to 2000 chars by a Zod transform. `inputPreview` and `outputPreview` default to `""` so error logs (where there may be no output) always pass validation.
+
+### Middleware stack
+
+```
+Request
+  → CORS (whitelist: localhost:5173, localhost:4173)
+  → express.json (1 MB limit)
+  → route handler
+      → validate(ZodSchema)     ← 400 on invalid body
+      → asyncHandler(fn)        ← catches promise rejections → next(err)
+      → route logic
+  → errorHandler                ← 409 on duplicate key, 500 on unhandled errors
+```
+
+### Stats aggregation
+
+`GET /api/logs/stats` runs four MongoDB aggregation pipelines in parallel:
+
+1. **Summary** — `$group` total requests, success/error/cancelled counts, avg latency, total tokens
+2. **By model** — `$group` on `llmModel`, sorted by count descending
+3. **By status** — `$group` on `status`
+4. **Time series** — `$group` by `{ year, month, day, hour, minute }` for the last 60 minutes
+
+The frontend's `DashboardView` uses the Redux `logs.items` array (loaded via `GET /api/logs`) and derives the same metrics locally via `bucketByMinute()` — this means the dashboard works offline with locally-cached data and can also be wired to the stats endpoint in future.
 
 ---
 
-## Key Constraints and Known Limitations
+## Key design decisions
 
-| Constraint | Detail |
+| Decision | Rationale |
 |---|---|
-| No persistence | All state resets on page refresh (Redux is in-memory only) |
-| No backend | Puter.js handles all AI calls from the browser |
-| Token estimates | 4 chars ≈ 1 token; actual usage not available from Puter SDK |
-| Log cap | `logsSlice` keeps a maximum of 500 entries |
-| Single provider | `Provider` type exists for future expansion; only `"puter"` is implemented |
-| No URL routing | Navigation is `ui.activeView` state only |
-| Streaming abort | Uses browser `AbortController`; Puter may or may not honour mid-stream cancellation depending on the underlying model |
+| Optimistic updates | UI never blocks on network; log/conversation state is immediately visible even if the backend is down |
+| Messages embedded in Conversation | Always fetched together; avoids a join; won't hit the 16 MB BSON limit for typical usage |
+| `requestId` unique index | Natural idempotency — retrying a failed POST never creates duplicate logs |
+| `llmModel` field name | `model` clashes with Mongoose's built-in `Document.model()` method in TypeScript |
+| No URL routing | Single-page tool with four fixed views — a URL router adds no value |
+| `loadSettings` before first render | Settings (model, streaming, PII toggle) must be hydrated before `ChatView` initialises to avoid a flash of wrong defaults |
+| Bootstrap errors are swallowed | App starts with local defaults if the backend is unreachable — offline-first by design |
 
 ---
 
-## Dependency Map
+## Known limitations
 
-```
-Component layer
-    └── uses → store/hooks (useAppSelector, useAppDispatch)
-    └── uses → sdk/llmSdk (llmCall, PUTER_MODELS)
-    └── uses → helpers/* (pure utility functions)
-    └── uses → components/ui/* (shadcn primitives)
-
-SDK layer
-    └── uses → @heyputer/puter.js (external, browser-only)
-    └── uses → store (dispatch injected, never imported directly)
-
-Store layer
-    └── uses → @reduxjs/toolkit
-    └── no imports from components or SDK
-
-Helpers
-    └── pure functions, no imports from store or SDK
-```
-
-The store never imports from components or the SDK. The SDK never imports from components. This keeps the dependency graph acyclic and layers cleanly separated.
+| Item | Detail |
+|---|---|
+| Token counts | Estimated (chars / 4); Puter.js does not expose actual usage data |
+| Single user | `UserSettings` uses `userId = "default"`; no auth layer exists yet |
+| No message deletion | Messages can only be deleted by deleting the whole conversation |
+| Streaming abort | Uses `AbortController`; mid-stream cancellation depends on the underlying model |
+| `Provider` type | Exists for future multi-provider support; only `"puter"` is implemented |
