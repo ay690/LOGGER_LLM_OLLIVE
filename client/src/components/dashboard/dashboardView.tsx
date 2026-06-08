@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+import { useMemo, useEffect } from "react"
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -9,6 +9,8 @@ import {
   CheckCircle2, Zap, TrendingUp,
 } from "lucide-react"
 import { useAppSelector } from "@/store/hooks"
+import { useAppDispatch } from "@/store/hooks"
+import { loadLogs } from "@/store/slices/logsSlice"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { stableColor, shortLabel } from "@/helpers/modelHelpers"
 import { bucketByMinute } from "@/helpers/chartHelpers"
@@ -71,7 +73,14 @@ function PieLabel({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius =
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 export function DashboardView() {
+  const dispatch = useAppDispatch()
   const logs = useAppSelector((s) => s.logs.items)
+  const syncing = useAppSelector((s) => s.logs.syncing)
+
+  // Load logs from backend whenever dashboard is opened
+  useEffect(() => {
+    dispatch(loadLogs({ limit: 500 }))
+  }, [dispatch])
 
   const metrics = useMemo(() => {
     if (logs.length === 0) return null
@@ -112,10 +121,10 @@ export function DashboardView() {
       <div className="flex h-full items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex size-12 items-center justify-center rounded-2xl bg-muted">
-            <Activity className="size-6 text-muted-foreground" />
+            <Activity className={`size-6 text-muted-foreground ${syncing ? "animate-pulse" : ""}`} />
           </div>
           <p className="text-sm text-muted-foreground">
-            No inference data yet. Start chatting to see metrics.
+            {syncing ? "Loading metrics…" : "No inference data yet. Start chatting to see metrics."}
           </p>
         </div>
       </div>

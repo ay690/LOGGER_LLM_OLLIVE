@@ -4,7 +4,12 @@ import type { InferenceLog } from "@/types"
 export function bucketByMinute(logs: InferenceLog[]) {
   const map = new Map<string, { latency: number[]; count: number; errors: number; tokens: number }>()
 
-  for (const log of logs) {
+  // Sort oldest-first so the map builds in chronological order
+  const sorted = [...logs].sort(
+    (a, b) => new Date(a.requestTimestamp).getTime() - new Date(b.requestTimestamp).getTime()
+  )
+
+  for (const log of sorted) {
     const d = new Date(log.requestTimestamp)
     const key = `${d.getHours()}:${String(d.getMinutes()).padStart(2, "0")}`
     const existing = map.get(key) ?? { latency: [], count: 0, errors: 0, tokens: 0 }
@@ -15,6 +20,7 @@ export function bucketByMinute(logs: InferenceLog[]) {
     map.set(key, existing)
   }
 
+  // Map is now in chronological order — take the 15 most recent buckets
   return Array.from(map.entries()).slice(-15).map(([time, v]) => ({
     time,
     latency: Math.round(v.latency.reduce((a, b) => a + b, 0) / v.latency.length),

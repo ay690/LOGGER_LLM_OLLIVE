@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Filter, X, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import { setFilter, clearLogs } from "@/store/slices/logsSlice";
+import { setFilter, clearLogs, loadLogs } from "@/store/slices/logsSlice";
 import { PUTER_MODELS } from "@/sdk/llmSdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -148,7 +148,12 @@ function LogRow({ log }: { log: InferenceLog }) {
 
 export function LogsView() {
   const dispatch = useAppDispatch()
-  const { items: logs, filter } = useAppSelector((s) => s.logs)
+  const { items: logs, filter, syncing } = useAppSelector((s) => s.logs)
+
+  // Load from backend on mount so logs survive page refresh
+  useEffect(() => {
+    dispatch(loadLogs())
+  }, [dispatch])
 
   const filtered = logs.filter((log) => {
     if (filter.model !== "all" && log.model !== filter.model) return false
@@ -234,6 +239,7 @@ export function LogsView() {
         )}
 
         <span className="ml-auto text-xs text-muted-foreground">
+          {syncing && <span className="mr-2 animate-pulse">syncing…</span>}
           {filtered.length} / {logs.length} logs
         </span>
       </div>

@@ -4,6 +4,7 @@ import {
   setDefaultModel,
   setStreamingEnabled,
   setPiiRedactionEnabled,
+  syncSettings,
 } from "@/store/slices/settingsSlice";
 import { PUTER_MODELS } from "@/sdk/llmSdk";
 import { Label } from "@/components/ui/label";
@@ -66,7 +67,10 @@ export function SettingsPanel({ className }: { className?: string }) {
         <Label className="text-xs">Model</Label>
         <Select
           value={settings.defaultModel}
-          onValueChange={(v) => dispatch(setDefaultModel(v))}
+          onValueChange={(v) => {
+            dispatch(setDefaultModel(v))
+            dispatch(syncSettings({ defaultModel: v }))
+          }}
         >
           <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Select model" />
@@ -86,12 +90,20 @@ export function SettingsPanel({ className }: { className?: string }) {
         <Toggle
           label="Streaming"
           checked={settings.streamingEnabled}
-          onChange={() => dispatch(setStreamingEnabled(!settings.streamingEnabled))}
+          onChange={() => {
+            const next = !settings.streamingEnabled
+            dispatch(setStreamingEnabled(next))
+            dispatch(syncSettings({ streamingEnabled: next }))
+          }}
         />
         <Toggle
           label="PII Redaction"
           checked={settings.piiRedactionEnabled}
-          onChange={() => dispatch(setPiiRedactionEnabled(!settings.piiRedactionEnabled))}
+          onChange={() => {
+            const next = !settings.piiRedactionEnabled
+            dispatch(setPiiRedactionEnabled(next))
+            dispatch(syncSettings({ piiRedactionEnabled: next }))
+          }}
         />
       </div>
 

@@ -10,6 +10,9 @@ import {
   cancelConversation,
   setLoading,
   createConversation,
+  syncCreateConversation,
+  syncAddMessage,
+  syncConversationStatus,
 } from "@/store/slices/conversationsSlice";
 import { llmCall, PUTER_MODELS } from "@/sdk/llmSdk";
 import { Button } from "@/components/ui/button";
@@ -47,15 +50,33 @@ export function ChatView (){
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [activeConv?.messages])
 
+  const buildConversation = useCallback(() => {
+    const now = new Date().toISOString()
+    return {
+      id: nanoid(),
+      title: "New Conversation",
+      provider: "puter" as const,
+      model: settings.defaultModel,
+      messages: [],
+      createdAt: now,
+      updatedAt: now,
+      status: "active" as const,
+    }
+  }, [settings.defaultModel])
+
   const startNewConversation = useCallback(() => {
+    const conv = buildConversation()
     dispatch(createConversation("puter", settings.defaultModel))
+    dispatch(syncCreateConversation(conv))
     setInput("")
-  }, [dispatch, settings.defaultModel])
+  }, [dispatch, settings.defaultModel, buildConversation])
 
   // Create a conversation on first load if none exists
   useEffect(() => {
     if (conversations.items.length === 0) {
+      const conv = buildConversation()
       dispatch(createConversation("puter", settings.defaultModel))
+      dispatch(syncCreateConversation(conv))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -66,22 +87,10 @@ export function ChatView (){
     let currentConvId = conversations.activeConversationId
 
     if (!currentConvId || isCancelled) {
-      const newId = nanoid()
-      const now = new Date().toISOString()
-      dispatch({
-        type: "conversations/createConversation",
-        payload: {
-          id: newId,
-          title: "New Conversation",
-          provider: "puter",
-          model: settings.defaultModel,
-          messages: [],
-          createdAt: now,
-          updatedAt: now,
-          status: "active",
-        },
-      })
-      currentConvId = newId
+      const conv = buildConversation()
+      dispatch({ type: "conversations/createConversation", payload: conv })
+      dispatch(syncCreateConversation(conv))
+      currentConvId = conv.id
     }
 
     setInput("")
@@ -94,20 +103,17 @@ export function ChatView (){
       timestamp: new Date().toISOString(),
     }
     dispatch(addMessage({ conversationId: currentConvId, message: userMsg }))
+    dispatch(syncAddMessage({ conversationId: currentConvId, message: userMsg }))
 
     const assistantMsgId = nanoid()
-    dispatch(
-      addMessage({
-        conversationId: currentConvId,
-        message: {
-          id: assistantMsgId,
-          role: "assistant",
-          content: "",
-          timestamp: new Date().toISOString(),
-          isStreaming: true,
-        },
-      })
-    )
+    const assistantMsg: Message = {
+      id: assistantMsgId,
+      role: "assistant",
+      content: "",
+      timestamp: new Date().toISOString(),
+      isStreaming: true,
+    }
+    dispatch(addMessage({ conversationId: currentConvId, message: assistantMsg }))
     dispatch(setStreamingMessageId(assistantMsgId))
 
     abortRef.current = new AbortController()
@@ -152,14 +158,23 @@ export function ChatView (){
           messageId: assistantMsgId,
         })
       )
+      // Persist the completed assistant message
+      const finalContent = streamingContentRef.current
+      if (finalContent) {
+        dispatch(syncAddMessage({
+          conversationId: currentConvId,
+          message: { ...assistantMsg, content: finalContent, isStreaming: false },
+        }))
+      }
       dispatch(setLoading(false))
     }
-  }, [input, isLoading, settings, conversations, dispatch, isCancelled])
+  }, [input, isLoading, settings, conversations, dispatch, isCancelled, buildConversation])
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort()
     if (conversations.activeConversationId) {
       dispatch(cancelConversation(conversations.activeConversationId))
+      dispatch(syncConversationStatus({ id: conversations.activeConversationId, status: "cancelled" }))
     }
     dispatch(setLoading(false))
   }, [dispatch, conversations.activeConversationId])

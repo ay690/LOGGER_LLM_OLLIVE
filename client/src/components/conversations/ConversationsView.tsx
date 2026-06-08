@@ -1,11 +1,15 @@
+import { useEffect } from "react"
 import { MessageSquare, Trash2, Play, XCircle, Clock, Hash } from "lucide-react"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import {
   setActiveConversation,
   cancelConversation,
   deleteConversation,
+  syncConversationStatus,
+  syncDeleteConversation,
 } from "@/store/slices/conversationsSlice"
 import { setActiveView } from "@/store/slices/uiSlice"
+import { loadLogs } from "@/store/slices/logsSlice"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -17,9 +21,24 @@ export function ConversationsView() {
   const conversations = useAppSelector((s) => s.conversations.items)
   const activeId = useAppSelector((s) => s.conversations.activeConversationId)
 
+  // Refresh logs when this view mounts so the data stays current
+  useEffect(() => {
+    dispatch(loadLogs())
+  }, [dispatch])
+
   const handleResume = (id: string) => {
     dispatch(setActiveConversation(id))
     dispatch(setActiveView("chat"))
+  }
+
+  const handleCancel = (id: string) => {
+    dispatch(cancelConversation(id))
+    dispatch(syncConversationStatus({ id, status: "cancelled" }))
+  }
+
+  const handleDelete = (id: string) => {
+    dispatch(deleteConversation(id))
+    dispatch(syncDeleteConversation(id))
   }
 
   if (conversations.length === 0) {
@@ -115,7 +134,7 @@ export function ConversationsView() {
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-muted-foreground hover:text-destructive"
-                    onClick={() => dispatch(cancelConversation(conv.id))}
+                    onClick={() => handleCancel(conv.id)}
                   >
                     <XCircle className="size-3" />
                     Cancel
@@ -126,7 +145,7 @@ export function ConversationsView() {
                   variant="ghost"
                   size="icon-sm"
                   className="ml-auto text-muted-foreground hover:text-destructive"
-                  onClick={() => dispatch(deleteConversation(conv.id))}
+                  onClick={() => handleDelete(conv.id)}
                   aria-label="Delete conversation"
                 >
                   <Trash2 className="size-3.5" />

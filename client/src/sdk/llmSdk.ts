@@ -2,7 +2,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 import puter from "@heyputer/puter.js";
 import type { AppDispatch } from "@/store";
-import { addLog } from "@/store/slices/logsSlice";
+import { addLog, syncLog } from "@/store/slices/logsSlice";
 import type { InferenceLog, Message } from "@/types";
 
 // ─── PII Redaction ────────────────────────────────────────────────────────────
@@ -158,8 +158,7 @@ export async function llmCall(
       ? redactPII(content)
       : content.slice(0, 120)
 
-    config.dispatch(
-      addLog({
+    const logEntry: InferenceLog = {
         id: nanoid(),
         conversationId,
         sessionId: conversationId,
@@ -176,8 +175,11 @@ export async function llmCall(
         inputPreview,
         outputPreview,
         requestId,
-      })
-    )
+      }
+
+    config.dispatch(addLog(logEntry))
+    // Fire-and-forget persist to backend — don't block or throw on failure
+    config.dispatch(syncLog(logEntry))
   }
 
   return content;
