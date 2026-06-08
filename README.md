@@ -146,6 +146,3 @@ All models are proxied through Puter's free AI gateway:
 
 ---
 
-## DEMO
-
-- VIDEO:- [VIDEO_LINK](https://drive.google.com/file/d/1jPsQOe_GTHGoG6GwqTWY9PSnqoBR6UR0/view?usp=sharing)
