@@ -1,0 +1,31 @@
+services:
+
+  # ─── Express API (ts-node-dev, port 3001) ───────────────────────────────────
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server:/app          # mount source so ts-node-dev hot-reloads on save
+      - /app/node_modules      # keep container's node_modules, don't overwrite with host
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      MONGODB_URI: ${MONGODB_URI}
+    restart: unless-stopped
+
+  # ─── Vite Dev Server (port 5173) ────────────────────────────────────────────
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/app          # mount source so Vite HMR works on save
+      - /app/node_modules      # keep container's node_modules, don't overwrite with host
+    depends_on:
+      - server
+    restart: unless-stopped
