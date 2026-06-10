@@ -21,6 +21,10 @@ A full-stack developer tool for monitoring LLM inference in real time. Chat with
 
 ---
 
+## DEMO
+
+- Video: [Youtube](https://youtu.be/WLGwKVZgCjc)
+
 ## Repository layout
 
 ```
@@ -165,6 +169,3 @@ All models are proxied through Puter's free AI gateway:
 - The `Provider` type is designed for future expansion; only `"puter"` is implemented today
 - Streaming abort uses the browser `AbortController`; mid-stream cancellation behaviour depends on the underlying model
 
-## DEMO
-
-- Video: [VIDEO_LINK](https://drive.google.com/file/d/1fKNOz2lTt8QUybaeUD2OOKcAh8EJeIXR/view?usp=sharing)
