@@ -164,3 +164,7 @@ All models are proxied through Puter's free AI gateway:
 - PII redaction applies to stored previews only; full message content is sent to the model
 - The `Provider` type is designed for future expansion; only `"puter"` is implemented today
 - Streaming abort uses the browser `AbortController`; mid-stream cancellation behaviour depends on the underlying model
+
+## DEMO
+
+- Video: [VIDEO_LINK](https://drive.google.com/file/d/1fKNOz2lTt8QUybaeUD2OOKcAh8EJeIXR/view?usp=sharing)
