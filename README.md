@@ -25,6 +25,8 @@ A full-stack developer tool for monitoring LLM inference in real time. Chat with
 
 - Video: [Youtube](https://youtu.be/WLGwKVZgCjc)
 
+---
+
 ## Repository layout
 
 ```
