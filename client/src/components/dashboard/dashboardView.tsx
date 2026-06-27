@@ -12,8 +12,8 @@ import { useAppSelector } from "@/store/hooks"
 import { useAppDispatch } from "@/store/hooks"
 import { loadLogs } from "@/store/slices/logsSlice"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { stableColor, shortLabel } from "@/helpers/modelHelpers"
-import { bucketByMinute } from "@/helpers/chartHelpers"
+import { stableColor, shortLabel } from "@/utils/model"
+import { bucketByMinute } from "@/utils/chart"
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function StatCard({ label, value, sub, icon, accent }: {
