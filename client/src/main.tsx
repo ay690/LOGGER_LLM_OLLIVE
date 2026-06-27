@@ -8,6 +8,13 @@ import { ThemeProvider } from "@/components/theme-provider.tsx";
 import { loadSettings } from "@/store/slices/settingsSlice";
 import { loadConversations } from "@/store/slices/conversationsSlice";
 
+function dismissLoader() {
+  const loader = document.getElementById("app-loader");
+  if (!loader) return;
+  loader.classList.add("fade-out");
+  loader.addEventListener("transitionend", () => loader.remove(), { once: true });
+}
+
 // Bootstrap: hydrate store from backend before first render.
 // Failures are silenced — the app works offline with local defaults.
 Promise.all([
@@ -22,5 +29,6 @@ Promise.all([
         </ThemeProvider>
       </Provider>
     </StrictMode>
-  )
+  );
+  dismissLoader();
 })
