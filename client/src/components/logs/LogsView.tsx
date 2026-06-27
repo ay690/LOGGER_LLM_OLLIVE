@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { statusBadge, formatTs } from "@/helpers/logHelpers";
+import { statusBadge, formatTs } from "@/utils/log";
 import type { InferenceLog } from "@/types";
 
 function LogRow({ log }: { log: InferenceLog }) {

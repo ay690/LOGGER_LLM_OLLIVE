@@ -119,6 +119,11 @@ export function ChatView (){
     abortRef.current = new AbortController()
     streamingContentRef.current = ""
 
+    if (!currentConvId) {
+      dispatch(setLoading(false))
+      return
+    }
+
     const historyMessages = (
       conversations.items.find((c) => c.id === currentConvId)?.messages ?? []
     )
@@ -127,8 +132,9 @@ export function ChatView (){
 
     const allMessages: Message[] = [...historyMessages, userMsg]
 
+    let finalContent = ""
     try {
-      await llmCall(
+      finalContent = await llmCall(
         allMessages,
         currentConvId,
         {
@@ -137,18 +143,31 @@ export function ChatView (){
           piiRedactionEnabled: settings.piiRedactionEnabled,
           dispatch,
         },
-        (chunk) => {
-          streamingContentRef.current += chunk
-          dispatch(
-            updateStreamingMessage({
-              conversationId: currentConvId,
-              messageId: assistantMsgId,
-              content: streamingContentRef.current,
-            })
-          )
-        },
+        settings.streamingEnabled
+          ? (chunk) => {
+              streamingContentRef.current += chunk
+              dispatch(
+                updateStreamingMessage({
+                  conversationId: currentConvId!,
+                  messageId: assistantMsgId,
+                  content: streamingContentRef.current,
+                })
+              )
+            }
+          : undefined,
         abortRef.current.signal
       )
+      // For non-streaming, llmCall returns the full content directly
+      if (!settings.streamingEnabled) {
+        streamingContentRef.current = finalContent
+        dispatch(
+          updateStreamingMessage({
+            conversationId: currentConvId,
+            messageId: assistantMsgId,
+            content: finalContent,
+          })
+        )
+      }
     } catch {
       // Error already logged by SDK
     } finally {
@@ -159,11 +178,11 @@ export function ChatView (){
         })
       )
       // Persist the completed assistant message
-      const finalContent = streamingContentRef.current
-      if (finalContent) {
+      const saved = streamingContentRef.current || finalContent
+      if (saved) {
         dispatch(syncAddMessage({
           conversationId: currentConvId,
-          message: { ...assistantMsg, content: finalContent, isStreaming: false },
+          message: { ...assistantMsg, content: saved, isStreaming: false },
         }))
       }
       dispatch(setLoading(false))
