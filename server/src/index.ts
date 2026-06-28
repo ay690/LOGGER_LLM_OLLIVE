@@ -10,6 +10,15 @@ import { errorHandler } from "./middleware/errorHandler";
 const app = express();
 const PORT = process.env.PORT ?? 3001;
 
+// ─── Crash handlers — log crashes clearly in dev ──────────────────────────────
+process.on("uncaughtException", (err) => {
+  console.error("[CRASH] Uncaught exception:", err);
+  // Don't exit — let nodemon keep watching for file changes to fix the error
+});
+process.on("unhandledRejection", (reason) => {
+  console.error("[CRASH] Unhandled rejection:", reason);
+});
+
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(
   cors({
@@ -51,6 +60,7 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Failed to start server:", err);
-  process.exit(1);
+  console.error("[CRASH] Failed to start server:", err);
+  // Don't call process.exit — keep the process alive so nodemon
+  // detects the next file save and restarts automatically
 });
