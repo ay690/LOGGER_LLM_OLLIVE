@@ -119,9 +119,10 @@ export async function llmCall(
     throw err
   } finally {
     const latencyMs = Math.round(performance.now() - startTime)
+    const rawOutput = content || (status === "cancelled" ? "[cancelled]" : status === "error" ? "[error]" : "")
     const outputPreview = config.piiRedactionEnabled
-      ? redactPII(content)
-      : content.slice(0, 120)
+      ? redactPII(rawOutput)
+      : rawOutput.slice(0, 120)
 
     const logEntry: InferenceLog = {
       id: nanoid(),

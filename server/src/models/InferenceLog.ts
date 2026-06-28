@@ -39,8 +39,8 @@ const InferenceLogSchema = new Schema<IInferenceLog>(
       required: true,
     },
     errorMessage: { type: String },
-    inputPreview: { type: String, required: true, maxlength: 500 },
-    outputPreview: { type: String, required: true, maxlength: 500 },
+    inputPreview: { type: String, required: false, maxlength: 500, default: "" },
+    outputPreview: { type: String, required: false, maxlength: 500, default: "" },
     requestId: { type: String, required: true },
   },
   {
