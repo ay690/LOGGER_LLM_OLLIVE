@@ -172,7 +172,7 @@ export function LogsView() {
   })
 
   return (
-    <div className="flex h-full flex-col gap-3 p-4">
+    <div className="flex h-full flex-col gap-3 p-4 min-h-0">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-48">
@@ -260,7 +260,7 @@ export function LogsView() {
       )}
 
       {/* Log rows */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {filtered.length === 0 ? (
           <div className="flex h-48 items-center justify-center">
             <p className="text-sm text-muted-foreground">
